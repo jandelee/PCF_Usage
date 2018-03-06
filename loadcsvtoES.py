@@ -18,8 +18,6 @@ ES_HOST = {
 INDEX_NAME = 'pcf_usage'
 TYPE_NAME = 'org'
 
-ID_FIELD = 'passengerid'
-
 import csv
 import urllib2
 
@@ -40,7 +38,6 @@ with open(filename) as csvfile:
 			"index": {
 				"_index": INDEX_NAME, 
 				"_type": TYPE_NAME, 
-#				"_id": data_dict[ID_FIELD]
 			}
 		}
 		bulk_data.append(op_dict)
