@@ -5,7 +5,7 @@
 import sys, pcf_api
 #import pandas as pd
 
-# make sure we have exactly 3 arguments 
+# make sure we have exactly 3 arguments
 if len(sys.argv) == 3:
 	aws_costs_filename = sys.argv[1]
 	services_filename = sys.argv[2]
@@ -15,7 +15,7 @@ else:
 	print('   and services_csv_file is a csv file containing the combined list of service instances')
 	exit()
 
-#df = pd.read_csv(services_filename) 
+#df = pd.read_csv(services_filename)
 #print(df.head())
 
 # Read in the services file and build a dictionary where the key is the service GUID
@@ -30,6 +30,7 @@ with open(services_filename, 'rU') as services_file:
 			service_guid = words[5]
 			services[service_guid] = service_name_and_plan
 
+billed_services_tags = pcf_api.get_config_value( 'SERVICE_DEPLOYMENT_TAGS' )
 svc_costs_filename = "svc_costs.csv"
 print('Writing service costs to file ' + svc_costs_filename)
 unmatched_guids_filename = "unmatched_guids.csv"
@@ -45,27 +46,39 @@ with open(aws_costs_filename, 'rU') as aws_file, open(svc_costs_filename, 'w') a
 	# Format is Deployment Tag,Costs,Hours,Instances
 	for line in aws_file.readlines():
 		line = line.strip()
-		# Extract the GUID, if present
-		if line.find('service-instance_') == 0:
-			words = line.split(',')
-			guid = words[0][17:]
-			if guid in services:
-				service_name_and_plan = services[guid]
-				if service_name_and_plan in svc_costs:
-					svc_costs[service_name_and_plan] = svc_costs[service_name_and_plan] + float(words[1])
-					svc_counts[service_name_and_plan] = svc_counts[service_name_and_plan] + 1
-					svc_instances[service_name_and_plan] = svc_instances[service_name_and_plan] + float(words[3])
+
+		found = False
+		for tag in billed_services_tags:
+			if line.startswith(tag):
+				found = True
+		if found:
+
+#			print(line)
+			# If this line is an on demand service
+			if line.find('service-instance_') == 0:
+				# Extract the GUID, if present
+				words = line.split(',')
+				guid = words[0][17:]
+				if guid in services:
+					service_name_and_plan = services[guid]
+					if service_name_and_plan in svc_costs:
+						svc_costs[service_name_and_plan] = svc_costs[service_name_and_plan] + float(words[1])
+						svc_counts[service_name_and_plan] = svc_counts[service_name_and_plan] + 1
+						svc_instances[service_name_and_plan] = svc_instances[service_name_and_plan] + float(words[3])
+					else:
+						svc_costs[service_name_and_plan] = float(words[1])
+						svc_counts[service_name_and_plan] = 1
+						svc_instances[service_name_and_plan] = float(words[3])
 				else:
-					svc_costs[service_name_and_plan] = float(words[1])
-					svc_counts[service_name_and_plan] = 1
-					svc_instances[service_name_and_plan] = float(words[3])
+					unmatched_guids.append(guid + ',' + words[1])
+			# This is a multi-tenant service
 			else:
-				unmatched_guids.append(guid + ',' + words[1])
+				pass
 	print("SvcName,SvcPlanName,Cost,TotalCost,SvcCount,AvgSvcInstances", file=svc_costs_file)
 	for key in svc_costs:
 		svc_cost = float(svc_costs[key])/float(svc_counts[key])
 		svc_instance = float(svc_instances[key])/float(svc_counts[key])
-		print("%s,%.2f,%s,%d,%.2f" % (key, svc_cost, svc_costs[key],svc_counts[key],svc_instance), file=svc_costs_file)
+		print("%s,%.2f,%.2f,%d,%.2f" % (key, svc_cost, float(svc_costs[key]),svc_counts[key],svc_instance), file=svc_costs_file)
 	print("GUID,Cost", file=unmatched_guids_file)
 	for guid_and_cost in unmatched_guids:
 		print(guid_and_cost, file=unmatched_guids_file)

@@ -54,6 +54,9 @@ with open(svcs_filename, 'rU') as services_file:
 			else:
 				licensed_services[key] = 1
 
+#for key in service_costs:
+#	print(key + '->' + service_costs(key))
+
 # open the usage file
 with open(usage_filename, 'rU') as f:
 	print("Org_Name,Env,Spaces,Apps,Instances,Total_GB_Used,Avg_GB_Used,Services,App AWS($),App Lic($),Svc AWS($),Svc Lic($),Total($)")

@@ -5,12 +5,12 @@
 # the second line contains the Total costs and hours,
 # and the third and subsequent lines (if present) contain the costs and hours for each calendar month in the AWS report.
 # The resulting CSV file contains the deployment tag in column 1, hours in column 2, and costs in column 3
-# In column 4, the # of instances is computed simply by dividing 
+# In column 4, the # of instances is computed simply by dividing
 # The last 3 lines of the resulting CSV file contain the Totals, Service Subtotals, and Service percentage of the Totals.
 
 import sys, pcf_api
 
-# make sure we have exactly 3 arguments 
+# make sure we have exactly 3 arguments
 if len(sys.argv) == 3:
 	input_filename = sys.argv[1]
 	days = float(sys.argv[2])
@@ -58,7 +58,6 @@ with open(input_filename, 'rU') as f, open(output_filename, 'w') as output_file:
 
 		# Headings are in the form of: <deploymentTag>($), Total cost ($), <deploymentTag>(Hrs), Total usage (Hrs)
 		# If the heading is 'Total cost ($)'
-		print('*' + heading + '*')
 		if heading == 'Total cost ($)':
 			tag_costs['Total'] = total
 
@@ -75,7 +74,6 @@ with open(input_filename, 'rU') as f, open(output_filename, 'w') as output_file:
 					found = True
 			if found:
 				service_costs = service_costs + float(total)
-#				print('*' + heading + '*')
 
 		# Else if the heading ends with (Hrs)
 		elif heading[-5:] == '(Hrs)':
@@ -86,16 +84,23 @@ with open(input_filename, 'rU') as f, open(output_filename, 'w') as output_file:
 					found = True
 			if found:
 				service_hours = service_hours + float(total)
-#				print('*' + heading + '*')
 
-		# Else we found something unexpected in the heading 
+		# Else we found something unexpected in the heading
 		else:
 			print("Found invalid heading in csv file")
 			print("Heading is: " + heading)
 			exit()
-				
-	# print out the results
-	for tag in tag_costs.keys():
-		print( "%s,%.2f,%.2f,%.1f" % (tag,float(tag_costs[tag]),float(tag_hours[tag]),(float(tag_hours[tag])/days/24)), file=output_file)
-	print( 'Service Subtotal,%.2f,%.2f,%.1f' % (service_costs,service_hours,(float(service_hours)/days/24)), file=output_file)
-	print( 'Service Percentage,%.1f,%.1f' % ( (100*service_costs/float(tag_costs['Total'])), (100*service_hours/float(tag_hours['Total'])) ), file=output_file)
+	# If the hours data is present (costs data is also present)
+	if len(tag_hours)>0:
+		# print out the costs and hours results
+		for tag in tag_costs.keys():
+			print( "%s,%.2f,%.2f,%.1f" % (tag,float(tag_costs[tag]),float(tag_hours[tag]),(float(tag_hours[tag])/days/24)), file=output_file)
+		print( 'Service Subtotal,%.2f,%.2f,%.1f' % (service_costs,service_hours,(float(service_hours)/days/24)), file=output_file)
+		print( 'Service Percentage,%.1f,%.1f' % ( (100*service_costs/float(tag_costs['Total'])), (100*service_hours/float(tag_hours['Total'])) ), file=output_file)
+	# Else only the cost data is present
+	else:
+		# print out the costs results
+		for tag in tag_costs.keys():
+			print( "%s,%.2f,%.2f,%.1f" % (tag.strip(),float(tag_costs[tag]),0.0,0.0), file=output_file)
+		print( 'Service Subtotal,%.2f,%.2f,%.1f' % (service_costs,service_hours,(float(service_hours)/days/24)), file=output_file)
+		print( 'Service Percentage,%.1f,%.1f' % ( (100*service_costs/float(tag_costs['Total'])), 0.0 ), file=output_file)

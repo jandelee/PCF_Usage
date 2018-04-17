@@ -1,8 +1,6 @@
 import requests, subprocess
 
-CERTIFICATE_BUNDLE = 'C:/Users/jande/dev/download.cer'
-
-# This function searches the PlatformChargeback.cfg file for the key specified as the function argument and returns its value 
+# This function searches the PlatformChargeback.cfg file for the key specified as the function argument and returns its value
 # if found.  If the value is not found, the function terminates
 def get_config_value( config_key ):
 	with open("PlatformChargeback.cfg", 'rU') as config_file:
@@ -17,7 +15,10 @@ def get_config_value( config_key ):
 					if len(result)>0:
 						results[key] = result
 						result = ""
-					key,value = line.strip().split(':')
+#					print('*' + line + '*')
+#					print(line.strip().split(':',1))
+					key,value = line.strip().split(':',1)
+					value = value.strip()
 					# If the value of the key was specified on this line
 					if len(value)>0:
 						result = value
@@ -120,6 +121,7 @@ def get_data( route, entity_name, entity_key_name=None, silent=None ):
 
 	pcf_cc_api_url = get_cc_api_url()
 	headers = build_headers()
+	CERTIFICATE_BUNDLE = get_config_value('CERTIFICATE_BUNDLE')
 
 	result = {}
 	done = False
@@ -171,6 +173,7 @@ def get_items( route ):
 
 	pcf_cc_api_url = get_cc_api_url()
 	headers = build_headers()
+	CERTIFICATE_BUNDLE = get_config_value('CERTIFICATE_BUNDLE')
 	item_list = []
 	done = False
 	while not done:
@@ -199,6 +202,8 @@ def build_dict( route, entity_name ):
 
 	pcf_cc_api_url = get_cc_api_url()
 	headers = build_headers()
+	CERTIFICATE_BUNDLE = get_config_value('CERTIFICATE_BUNDLE')
+#	print('*' + CERTIFICATE_BUNDLE + '*')
 	d = {}
 	done = False
 	while not done:
