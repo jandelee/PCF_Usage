@@ -1,47 +1,38 @@
-import sys
+import sys, pcf_api
 
-# make sure we have exactly 3 file argument 
+# make sure we have exactly 3 file arguments
 if len(sys.argv) != 4:
-	print('Usage:', str(sys.argv[0]), 'usage_csv_file','services_csv_file','service summary file')
-	print('   where usage_csv_file is a usage file')
-	print('   where services_csv_file is a services file')
-	print('   where services summary file is a services summary file')
+	print('Usage:', str(sys.argv[0]), 'usage_csv_file','services_csv_file','services_costs_file')
+	print('   where usage_csv_file is a file containing the combined app usage for all environments')
+	print('   where services_csv_file is a file containing the combined service instances being used in all environments')
+	print('   where services_costs_file is a file containing the cost of each service for which charges are to be collected')
 	exit()
 else:
 	usage_filename = sys.argv[1]
-	services_filename = sys.argv[2]
-	services_summary_filename = sys.argv[3]
+	svcs_filename = sys.argv[2]
+	svcs_costs_filename = sys.argv[3]
 
-# open the services summary file and build:
+# open the Licensed Services file and retrieve a list of licensed services
+licensed_svcs = pcf_api.get_config_value( 'LICENSED_SERVICES' )
+AWS_GB_MONTH = float(pcf_api.get_config_value( 'AWS_GB_MONTH' ))
+PAS_LIC_MONTH = float(pcf_api.get_config_value( 'PAS_LIC_MONTH' ))
+SVC_LIC_MONTH = float(pcf_api.get_config_value( 'SVC_LIC_MONTH' ))
+
+# open the services costs file and build:
 # dictionary containing the costs of each service/service plan where the key is the service/service plan
-# list of the services that require a license
-with open(services_summary_filename, 'rU') as summary_file:
-	service_plan_costs = {}
-	licensed_service = []
-	line = summary_file.readline() # throw away the first line
-	for line in summary_file.readlines():
-		line = line.strip()
-		words = line.split(',')
-		if words[0] != "": # This is a service line
-			service = words[0]
-			if line[-1:] == "1":
-				licensed_service.append(service)
-		elif words[2] != "": # This is a service plan line
-			plan = words[2]
-			plan_cost = words[4]
-			if plan_cost != "":
-				if plan_cost[:1] == '$':
-					plan_cost = plan_cost[1:]
-				service_plan = service + plan
-				service_plan_costs[service_plan] = plan_cost 
-		else: # invalid line
-			print( "Invalid line found in services summary file:")
-			print(line)
-			exit()
+with open(svcs_costs_filename, 'rU') as svcs_costs_file:
+	svcs_costs = {}
+	line = svcs_costs_file.readline() # throw away the first line
+	for line in svcs_costs_file.readlines(): # SvcName,SvcPlanName,Cost,TotalCost,SvcCount,AvgSvcInstances
+		words = line.strip().split(',')
+		svc_name_and_plan = words[0] + words[1]
+		svcs_costs[svc_name_and_plan] = words[2]
 
 # open the services file and build a dictionary where the key is the org and env and the value is the number of services for that org/env
-num_services = {}
-with open(services_filename, 'rU') as services_file:
+num_services = {} # Total number of service instances used by an org in a given environment.  This is for informational purposes only and does not affect the costs charged to that org
+licensed_services = {} # Number of PCF licensed services used by an org in a given environment.  Used to calculate the service licensing costs
+service_costs = {} # Total AWS costs of services used by an org in a given environment.
+with open(svcs_filename, 'rU') as services_file:
 	line = services_file.readline() # throw away the first line
 	for line in services_file.readlines():
 		words = line.split(',')
@@ -51,9 +42,21 @@ with open(services_filename, 'rU') as services_file:
 			num_services[key] = 1
 		else:
 			num_services[key] = num_services[key] + 1
+		service_name_and_plan = words[3] + words[4]
+		if service_name_and_plan in svcs_costs:
+			if key in service_costs:
+				service_costs[key] = service_costs[key] + float(svcs_costs[service_name_and_plan])
+			else:
+				service_costs[key] = float(svcs_costs[service_name_and_plan])
+		if words[3] in licensed_svcs:
+			if key in licensed_services:
+				licensed_services[key] = licensed_services[key] + 1
+			else:
+				licensed_services[key] = 1
 
+# open the usage file
 with open(usage_filename, 'rU') as f:
-	print("Org_Name,Env,Spaces,Apps,Instances,Total_GB_Used,Avg_GB_Used")
+	print("Org_Name,Env,Spaces,Apps,Instances,Total_GB_Used,Avg_GB_Used,Services,App AWS($),App Lic($),Svc AWS($),Svc Lic($),Total($)")
 	line = f.readline() # throw away the first line
 	for line in f.readlines():
 		words = line.split(',')
@@ -63,9 +66,25 @@ with open(usage_filename, 'rU') as f:
 			avg_GB = int(words[2])/int(words[8])/1024
 		else:
 			avg_GB = 0.0
-		print("%s,%s,%s,%s,%s,%.2f,%.2f," % (words[1],words[0],words[4],words[5],words[8],int(words[2])/1024,avg_GB), end="")
 		key = words[1] + words[0]
 		if key in num_services.keys():
-			print(num_services[key])
+			svc_count = num_services[key]
 		else:
-			print("0")
+			svc_count = 0
+
+		aws_cost = float(words[2])*AWS_GB_MONTH/1024
+		app_lic_cost = float(words[8])*PAS_LIC_MONTH
+		if key in service_costs.keys():
+			service_cost = float(service_costs[key])
+		else:
+			service_cost = 0
+		if key in licensed_services.keys():
+			svc_lic_cost = licensed_services[key]*SVC_LIC_MONTH
+		else:
+			svc_lic_cost = 0
+		total_cost = aws_cost + app_lic_cost + service_cost + svc_lic_cost
+		if total_cost>0:
+			print("%s,%s,%s,%s,%s,%.2f,%.2f,%d," % (words[1],words[0],words[4],words[5],words[8],int(words[2])/1024,avg_GB,svc_count), end="")
+			print("%.2f,%.2f," % (aws_cost,app_lic_cost), end="")
+			print("%d," % service_cost, end="")
+			print("%d,%.2f" % (svc_lic_cost, total_cost))
