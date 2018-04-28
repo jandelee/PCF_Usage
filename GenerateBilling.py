@@ -86,8 +86,8 @@ with open(usage_filename, 'rU') as f:
 		else:
 			svc_lic_cost = 0
 		total_cost = aws_cost + app_lic_cost + service_cost + svc_lic_cost
-		if total_cost>0:
-			print("%s,%s,%s,%s,%s,%.2f,%.2f,%d," % (words[1],words[0],words[4],words[5],words[8],int(words[2])/1024,avg_GB,svc_count), end="")
-			print("%.2f,%.2f," % (aws_cost,app_lic_cost), end="")
-			print("%d," % service_cost, end="")
-			print("%d,%.2f" % (svc_lic_cost, total_cost))
+		#if total_cost>0:
+		print("%s,%s,%s,%s,%s,%.2f,%.2f,%d," % (words[1],words[0],words[4],words[5],words[8],int(words[2])/1024,avg_GB,svc_count), end="")
+		print("%.2f,%.2f," % (aws_cost,app_lic_cost), end="")
+		print("%d," % service_cost, end="")
+		print("%d,%.2f" % (svc_lic_cost, total_cost))
