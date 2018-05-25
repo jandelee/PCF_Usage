@@ -7,12 +7,14 @@
 import sys, subprocess, os
 
 # make sure we have exactly 3 arguments
-if len(sys.argv) == 3:
-	datestring = sys.argv[1]
-	combinedfilename = sys.argv[2]
+if len(sys.argv) == 4:
+	keyword = sys.argv[1]
+	datestring = sys.argv[2]
+	combinedfilename = sys.argv[3]
 else:
-	print('Usage:', str(sys.argv[0]), ' <date-string> <combined_filename>')
-	print('   where date-string is a date in the form YYYYMMDD')
+	print('Usage:', str(sys.argv[0]), ' <keyword> <date-string> <combined_filename>')
+	print('   where keyword represents a text string that must be present in the filename')
+	print('   and where date-string is a date in the form YYYYMMDD')
 	print('   the date-string is used to determine which files in the current directory will be combined in order to')
 	print('   create a master usage file across multiple PCF environments')
 	print('   and combined_filename is the name of the file that the combined usage information will be written to.')
@@ -24,7 +26,7 @@ matchingfiles = []
 
 # Determine which ones match the datestring
 for file in files:
-	if file.find(datestring)>0 and file[-4:] == '.csv' and file.find('-')>0:
+	if file.find(keyword)>=0 and file.find(datestring)>0 and file[-4:] == '.csv' and file.find('-')>0:
 		matchingfiles.append(file)
 
 # Print out the matching files
