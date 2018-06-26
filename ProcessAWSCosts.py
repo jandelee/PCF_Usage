@@ -26,6 +26,8 @@ billed_services_tags = pcf_api.get_config_value( 'SERVICE_DEPLOYMENT_TAGS' )
 #	print(line)
 #exit()
 
+if input_filename[0:2] == '.\\':
+	input_filename = input_filename[2:]
 file_name,file_ext = input_filename.split('.')
 output_filename = file_name + '_processed.' + file_ext
 print('Writing result to file ' + output_filename)

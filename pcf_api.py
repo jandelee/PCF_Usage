@@ -235,3 +235,47 @@ def build_dict( route, entity_name ):
 			route = next_url
 
 	return d
+
+def build_dict_list( route, key_entity_name, value_entity_name ):
+
+	pcf_cc_api_url = get_cc_api_url()
+	headers = build_headers()
+	CERTIFICATE_BUNDLE = get_config_value('CERTIFICATE_BUNDLE')
+	d = {} # d is the dictionary that will be returned
+	done = False
+	while not done:
+		# call the PCF CC API, using the header with the bearer token
+		res = requests.get(pcf_cc_api_url + route, headers=headers, verify=CERTIFICATE_BUNDLE)
+		if res.status_code != 200:
+			res.raise_for_status()
+
+		# convert the result to json
+		js = res.json()
+
+		resources = js['resources']
+		# loop through the items in the resources list
+		for r in resources:
+			guid = r['metadata']['guid']
+			if key_entity_name in r['entity']:
+				key = r['entity'][key_entity_name]
+				if value_entity_name in r['entity']:
+					value = r['entity'][value_entity_name]
+					if key in d:
+						d[key].append(value)
+					else:
+						d[key] = [value]
+				else:
+					print("Could not find " + value_entity_name + " in:")
+					print(r['entity'])
+			else:
+				print("Could not find " + key_entity_name + " in:")
+				print(r['entity'])
+
+		# If there is no next url then we are done
+		next_url = js['next_url']
+		if next_url == None:
+			done = True
+		else: # else use the next url for the route and do it again
+			route = next_url
+
+	return d

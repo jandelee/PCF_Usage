@@ -29,8 +29,7 @@ with open(aws_filename, 'rU') as f:
 			service_cost = float(words[1])
 		elif words[0] == 'Total':
 			total_cost = float(words[1])
-#total_cost = input('Enter the total AWS costs across dev and ops:')
-#total_cost = float(total_cost)
+
 app_cost = total_cost - service_cost
 total_usage = total_usage/1024
 print('Total AWS cost:' + str(total_cost))

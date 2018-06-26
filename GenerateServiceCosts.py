@@ -11,7 +11,7 @@ if len(sys.argv) == 3:
 	services_filename = sys.argv[2]
 else:
 	print('Usage:', str(sys.argv[0]), 'aws_costs_csv_file services_csv_file')
-	print('   where aws_costs_csv_file is a csv file containing the AWS costs by deployment tag')
+	print('   where aws_costs_csv_file is a csv file containing the processed AWS costs by deployment tag')
 	print('   and services_csv_file is a csv file containing the combined list of service instances')
 	exit()
 
@@ -42,6 +42,7 @@ with open(aws_costs_filename, 'rU') as aws_file, open(svc_costs_filename, 'w') a
 	svc_counts = {}
 	svc_instances = {}
 	unmatched_guids = []
+	unmatched_costs = 0
 	# For each line in the AWS file
 	# Format is Deployment Tag,Costs,Hours,Instances
 	for line in aws_file.readlines():
@@ -71,14 +72,19 @@ with open(aws_costs_filename, 'rU') as aws_file, open(svc_costs_filename, 'w') a
 						svc_instances[service_name_and_plan] = float(words[3])
 				else:
 					unmatched_guids.append(guid + ',' + words[1])
+					unmatched_costs = unmatched_costs + float(words[1])
 			# This is a multi-tenant service
 			else:
-				pass
+				print("Found multi-tenant service: " + line )
+	total_svc_costs = 0
 	print("SvcName,SvcPlanName,Cost,TotalCost,SvcCount,AvgSvcInstances", file=svc_costs_file)
 	for key in svc_costs:
 		svc_cost = float(svc_costs[key])/float(svc_counts[key])
 		svc_instance = float(svc_instances[key])/float(svc_counts[key])
 		print("%s,%.2f,%.2f,%d,%.2f" % (key, svc_cost, float(svc_costs[key]),svc_counts[key],svc_instance), file=svc_costs_file)
+		total_svc_costs = total_svc_costs + svc_costs[key]
+	print("Total cost of matched services: %.2f %.1f%%" % (total_svc_costs, 100*total_svc_costs/(total_svc_costs+unmatched_costs)))
+	print("Total cost of unmatched GUID's: %.2f %.1f%%" %(unmatched_costs, 100*unmatched_costs/(total_svc_costs+unmatched_costs)))
 	print("GUID,Cost", file=unmatched_guids_file)
 	for guid_and_cost in unmatched_guids:
 		print(guid_and_cost, file=unmatched_guids_file)
